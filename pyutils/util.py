@@ -1,4 +1,8 @@
 def flatten(d, parent_key='', sep='_'):
+    """
+    Flatten nested dictionaries
+    """
+    
     items = []
     for k, v in d.items():
         new_key = str(parent_key) + str(sep) + str(k) if parent_key else k
