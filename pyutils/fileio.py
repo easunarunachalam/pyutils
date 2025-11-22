@@ -1,7 +1,17 @@
+__all__ = [
+    "contains_any_targets",
+    "list_files",
+    "pickle_load",
+    "pickle_save",
+    "append_datetime_to_filename",
+]
+
+from datetime import datetime
 import numpy as np
 import os
 from pathlib import Path
 import pickle
+
 
 
 def contains_any_targets(test, targets):
@@ -28,3 +38,13 @@ def pickle_load(picklepath):
     """
     with open(picklepath, "rb") as fp:
         return pickle.load(fp)
+
+
+
+def append_datetime_to_filename(input_filepath):
+    """
+    Append current date and time to filename and return path
+    """
+    input_filepath = Path(input_filepath)
+    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return input_filepath.with_stem(f"{input_filepath.stem}_{current_time}")
