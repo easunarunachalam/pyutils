@@ -76,20 +76,30 @@ def merge_multiple(*dataframes, **kwargs):
 
     return df_merge
 
-def summary_stats(group, colname="A"):
-
-    mean = np.mean(group[colname].values)
-    median = np.median(group[colname].values)
-    std = np.std(group[colname].values)
-    sem = std / np.sqrt(len(group[colname].values))
-    return pd.Series({"mean": mean, "median": median, "std": std, "sem": sem, "n": len(group)})
-
-# def bootstrap_ci_simple(arr, func=np.mean, ci=95, n_bstrap_samples=1000):
-#     func_values = [func(np.random.choice(arr, size=len(arr))) for _ in range(n_bstrap_samples)]
-#     lo, hi = (100-ci)/2, 100 - (100-ci)/2
-#     return np.percentile(func_values, lo), np.percentile(func_values, hi)
-
 def bootstrap_ci_simple(group, colname="A", pct=95):
+    """
+    Calculate basic summary statistics for a group without bootstrapping.
+    
+    Parameters
+    ----------
+    group : pd.DataFrame
+        DataFrame containing the data to analyze.
+    colname : str, optional
+        Name of the column to calculate statistics for. Default is "A".
+    pct : int, optional
+        Percentile for confidence interval (not used in this function, 
+        included for API consistency). Default is 95.
+    
+    Returns
+    -------
+    pd.Series
+        Series containing:
+        - mean: arithmetic mean
+        - median: median value
+        - std: standard deviation
+        - sem: standard error of the mean
+        - n: sample size
+    """
 
     mean = np.mean(group[colname].values)
     median = np.median(group[colname].values)
@@ -98,6 +108,37 @@ def bootstrap_ci_simple(group, colname="A", pct=95):
     return pd.Series({"mean": mean, "median": median, "std": std, "sem": sem, "n": len(group)})
 
 def bootstrap_ci(group, colname="A", pct=95, n_iterations=1000):
+    """
+    Calculate summary statistics with bootstrap confidence intervals.
+    
+    Uses bootstrap resampling to estimate confidence intervals around the mean
+    by repeatedly sampling with replacement from the data.
+    
+    Parameters
+    ----------
+    group : pd.DataFrame
+        DataFrame containing the data to analyze.
+    colname : str, optional
+        Name of the column to calculate statistics for. Default is "A".
+    pct : int, optional
+        Confidence level for the interval (e.g., 95 for 95% CI). Default is 95.
+    n_iterations : int, optional
+        Number of bootstrap iterations to perform. Default is 1000.
+    
+    Returns
+    -------
+    pd.Series
+        Series containing:
+        - mean: arithmetic mean of the original data
+        - median: median value of the original data
+        - std: standard deviation of the original data
+        - sem: standard error of the mean
+        - ci_lo: lower bound of the confidence interval
+        - ci_hi: upper bound of the confidence interval
+        - ci_lo_delta: distance from mean to lower bound
+        - ci_hi_delta: distance from upper bound to mean
+        - n: sample size
+    """
 
     bootstrap_means = []
     for _ in range(n_iterations):
@@ -113,3 +154,38 @@ def bootstrap_ci(group, colname="A", pct=95, n_iterations=1000):
     std = np.std(group[colname].values)
     sem = std / np.sqrt(len(group[colname].values))
     return pd.Series({"mean": mean, "median": median, "std": std, "sem": sem, "ci_lo": lower_bound, "ci_hi": upper_bound, "ci_lo_delta": mean-lower_bound, "ci_hi_delta": upper_bound-mean, "n": len(group)})
+
+def summary_stats(df, colnames_groupby, colname_calc_stats, pct=95, n_iterations=1000):
+    """
+    Calculate summary statistics with bootstrap confidence intervals for grouped data.
+    
+    Groups the DataFrame by specified columns and calculates bootstrap statistics
+    for each group.
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing the data to analyze.
+    colnames_groupby : str, list, or np.ndarray
+        Column name(s) to group by. Can be a single string or a list of column names.
+    colname_calc_stats : str
+        Name of the column to calculate statistics for within each group.
+    pct : int, optional
+        Confidence level for the interval (e.g., 95 for 95% CI). Default is 95.
+    n_iterations : int, optional
+        Number of bootstrap iterations to perform. Default is 1000.
+    
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with one row per group, containing bootstrap statistics
+        (mean, median, std, sem, confidence intervals, and sample size).
+    """
+    
+    if not (isinstance(colnames_groupby, list) or isinstance(colnames_groupby, np.ndarray)):
+        # if grouping by only a single column, put that colname in a list for consistency
+        colnames_groupby_list = [colnames_groupby,]
+
+    return df.groupby(colnames_groupby, group_keys=False).apply(
+        lambda a: bootstrap_ci(a.drop(columns=colnames_groupby_list), colname=colname_calc_stats, pct=pct, n_iterations=n_iterations)
+    )
