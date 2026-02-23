@@ -2,6 +2,47 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 
+def normalize_column(df, col_for_scale, other_cols_to_scale=[], how=np.mean, indices_for_scalecomp=None):
+
+    if indices_for_scalecomp is None:
+        scale_factor = how(df[col_for_scale].values)
+    else:
+        scale_factor = how(df.loc[indices_for_scalecomp, col_for_scale].values)
+
+    df[col_for_scale] = df[col_for_scale] / scale_factor
+
+    if not (isinstance(other_cols_to_scale, list) or isinstance(other_cols_to_scale, np.ndarray)):
+        other_cols_to_scale = [other_cols_to_scale,]
+
+    for col_name in other_cols_to_scale:
+        df[col_name] = df[col_name] / scale_factor
+
+    return df
+
+def propagate_error_product(df, col_a, col_b, mean_suffix=" mean", err_suffix=" sem"):
+    
+    product_mean = df[col_a + mean_suffix] * df[col_b + mean_suffix]
+
+    a_frac_err = df[col_a + err_suffix] / df[col_a + mean_suffix]
+    b_frac_err = df[col_b + err_suffix] / df[col_b + mean_suffix]
+    product_frac_err = np.sqrt(a_frac_err**2 + b_frac_err**2)
+
+    product_err = product_frac_err * product_mean
+
+    return product_mean, product_err
+
+def propagate_error_quotient(df, col_a, col_b, mean_suffix=" mean", err_suffix=" sem"):
+    
+    quotient_mean = df[col_a + mean_suffix] / df[col_b + mean_suffix]
+
+    a_frac_err = df[col_a + err_suffix] / df[col_a + mean_suffix]
+    b_frac_err = df[col_b + err_suffix] / df[col_b + mean_suffix]
+    quotient_frac_err = np.sqrt(a_frac_err**2 + b_frac_err**2)
+    
+    quotient_err = quotient_frac_err * quotient_mean
+
+    return quotient_mean, quotient_err
+
 def add_col_prefix(df, prefix):
     new_column_names = [prefix + col for col in df.columns]
     df2 = deepcopy(df)
